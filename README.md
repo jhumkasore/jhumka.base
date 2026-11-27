@@ -68,4 +68,4 @@ Note: on GitHub Pages everything is saved on each device, so roles and the share
 - `.nojekyll` tells GitHub Pages to serve the files as they are.
 
 ## Sign-in (optional)
-A multi-user sign-in screen in the app's own theme: email + password, a 6-digit email verification code on sign-up and password reset, and owner-managed access (only invited emails can join). It runs on Supabase. See `SETUP-LOGIN.md`, `supabase/setup.sql` and `config.js`. Leave `config.js` empty to run without sign-in.
+A multi-user sign-in screen in the app's own theme: email + password, email verification on sign-up and password reset (tap the link in the email, or type a 6-digit code if the email template is switched to codes), and owner-managed access (only invited emails can join). It runs on Supabase. See `SETUP-LOGIN.md`, `supabase/setup.sql` and `config.js`. Leave `config.js` empty to run without sign-in.

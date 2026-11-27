@@ -435,7 +435,14 @@ css.textContent=[
 document.head.appendChild(css);
 
 /* ---------- auth screen ---------- */
-var host=null,V={name:'signin',email:'',msg:'',err:'',busy:false,cool:0,coolT:null,last:'',clearOtp:false};
+var host=null,V={name:'signin',email:'',msg:'',err:'',busy:false,cool:0,coolT:null,last:'',clearOtp:false,welcome:false};
+/* Email link: Supabase's standard emails send a link back here with the sign-in in the address
+   (#access_token=...&type=signup|recovery, or #error_code=... when it is used up). Read it once and wipe it from the address bar. */
+var LINK=(function(){var h=location.hash||'';if(!/(^|[#&])(access_token|error_code|error_description)=/.test(h))return null;
+  var o={};h.replace(/^#/,'').split('&').forEach(function(kv){var i=kv.indexOf('=');if(i>0)try{o[decodeURIComponent(kv.slice(0,i))]=decodeURIComponent(kv.slice(i+1).replace(/\+/g,' '));}catch(e){}});
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  return o;})();
+function home(){return location.origin+location.pathname;}
 function ic(p){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';}
 var I={
   sun:ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
@@ -465,7 +472,7 @@ function btn(t){return '<button class="ja-b" type="submit"'+(V.busy?' disabled':
 function seg(on){return '<div class="ja-seg" role="group" aria-label="Sign in or create an account"><button type="button" data-go="signin" aria-pressed="'+(on==='signin')+'">Sign in</button><button type="button" data-go="signup" aria-pressed="'+(on==='signup')+'">Create account</button></div>';}
 function steps(k){var L=['Your details','Verify email','Ready'];return '<div class="ja-steps" role="img" aria-label="Step '+k+' of 3: '+L[k-1]+'">'+L.map(function(l,i){return '<div class="ja-st'+(i+1<k?' done':(i+1===k?' on':''))+'"><i></i>'+l+'</div>';}).join('')+'</div>';}
 function otpBoxes(){var s='';for(var i=0;i<6;i++)s+='<input class="ja-f" id="ja-o'+i+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="'+(i?'off':'one-time-code')+'" aria-label="Digit '+(i+1)+' of 6">';return '<div class="ja-lb" id="ja-ol">Verification code</div><div class="ja-otp" role="group" aria-labelledby="ja-ol">'+s+'</div>';}
-function rtext(){return V.cool>0?'Send again in '+V.cool+'s':'Send a new code';}
+function rtext(){return V.cool>0?'Send again in '+V.cool+'s':'Send the email again';}
 function pwHint(){var p=$('#ja-p'),h=$('#ja-ph');if(!p||!h)return;var ok=p.value.length>=8;h.textContent=ok?'Good length.':'At least 8 characters.';h.className='ja-hint'+(ok?' ok':'');}
 function show(name,keep){V.name=name;if(!keep){V.err='';V.msg='';}paint();}
 function paint(){
@@ -480,20 +487,20 @@ function paint(){
       '<div class="ja-row end"><button class="ja-l" type="button" data-go="forgot">Forgot password?</button></div>';
   }else if(n==='signup'){
     hero=['New to the team','Create account','in two quick steps.'];
-    sub='The owner adds your email first. Then we email you a 6-digit code to check it is yours.';
+    sub='The owner adds your email first. Then we send you an email to check it is yours.';
     card=seg('signup')+steps(1)+form(fld('ja-n','Your name','text','name','e.g. Anu Menon')+fld('ja-e','Email','email','username','you@example.com',V.email)+
       fld('ja-p','Choose a password','password','new-password','At least 8 characters')+'<div class="ja-hint" id="ja-ph">At least 8 characters.</div>'+
-      fld('ja-p2','Repeat password','password','new-password')+note()+btn('Send verification code'));
+      fld('ja-p2','Repeat password','password','new-password')+note()+btn('Create account'));
   }else if(n==='otp'||n==='rotp'){
     var su=n==='otp';
-    hero=[su?'Verify your email':'Reset password','Check your inbox','for a 6-digit code.'];
-    sub='We sent it to <b>'+esc(V.email)+'</b>. It can take a minute, so check spam too.';
+    hero=[su?'Verify your email':'Reset password','Check your inbox','and tap the link.'];
+    sub='We sent an email to <b>'+esc(V.email)+'</b>. Tap the link in it'+(su?' and you are in':' to choose a new password')+'. If the email shows a 6-digit code instead, type it below. It can take a minute, so check spam too.';
     card=(su?steps(2):'')+form(otpBoxes()+note()+btn(su?'Verify and continue':'Verify code'))+
       '<div class="ja-row"><button class="ja-l" type="button" data-go="resend"'+(V.cool>0?' disabled':'')+'>'+rtext()+'</button><button class="ja-l" type="button" data-go="'+(su?'signup':'forgot')+'">Use another email</button></div>';
   }else if(n==='forgot'){
-    hero=['Reset password','Forgot it?','We will send a code.'];
-    sub='Enter your email. If it has access, we send a 6-digit code so you can choose a new password.';
-    card=form(fld('ja-e','Email','email','username','you@example.com',V.email)+note()+btn('Send code'))+
+    hero=['Reset password','Forgot it?','We will email you a link.'];
+    sub='Enter your email. If it has access, we send an email so you can choose a new password.';
+    card=form(fld('ja-e','Email','email','username','you@example.com',V.email)+note()+btn('Send reset email'))+
       '<div class="ja-row"><button class="ja-l" type="button" data-go="signin">Back to sign in</button></div>';
   }else if(n==='newpw'){
     hero=['Almost done','New password','for next time.'];
@@ -514,7 +521,7 @@ function paint(){
     '<button class="ja-ib" type="button" data-go="theme"></button></header>'+
     '<main class="ja-main"><p class="ja-eye">'+esc(hero[0])+'</p><h1 id="ja-h">'+esc(hero[1])+(hero[2]?'<span>'+esc(hero[2])+'</span>':'')+'</h1>'+
     (sub?'<p class="ja-sub">'+sub+'</p>':'')+(card?'<div class="ja-c">'+card+'</div>':'')+
-    '<div class="ja-foot">'+I.lock+'<span>Only people the owner adds can get in. Verification codes come by email from Jhumka.</span></div></main></div>';
+    '<div class="ja-foot">'+I.lock+'<span>Only people the owner adds can get in. Verification emails come from Jhumka.</span></div></main></div>';
   themeBtn($('[data-go="theme"]',h));
   Object.keys(keepV).forEach(function(k){var el=document.getElementById(k);if(el)el.value=keepV[k];});
   V.last=n;
@@ -570,7 +577,7 @@ function friendly(e){
   var m=String(e&&e.message||e||''),c=e&&(e.code||e.status);
   if(/NOT_INVITED|Database error saving new user/i.test(m))return 'This email has not been added yet. Ask the owner to add it, then try again.';
   if(/Invalid login credentials/i.test(m))return 'Wrong email or password.';
-  if(/Email not confirmed/i.test(m))return 'This email is not verified yet. Enter the code we sent you.';
+  if(/Email not confirmed/i.test(m))return 'This email is not verified yet. Open the email we sent you and tap the link.';
   if(/already registered|already been registered|user_already_exists/i.test(m))return 'This email already has an account. Sign in, or use Forgot password.';
   if(/otp_expired|expired|invalid/i.test(m)&&/token|otp|code/i.test(m))return 'That code is wrong or has expired. Check it, or send a new one.';
   if(/rate limit|too many|over_email_send_rate_limit|429/i.test(m+c))return 'Too many tries. Wait a minute and try again.';
@@ -583,6 +590,8 @@ function busy(on){V.busy=on;var b=$('#ja .ja-b');if(b){b.disabled=on;var s=b.que
   if(on&&host)Array.prototype.forEach.call(host.querySelectorAll('.ja-err,.ja-ok'),function(x){x.remove();});}
 function bad(m){V.err=m;V.msg='';if(V.name==='otp'||V.name==='rotp')V.clearOtp=true;busy(false);paint();}
 function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function linkCheck(){if(V.name!=='otp'||V.busy||!SB)return;checkMember().then(function(ok){if(ok&&V.name==='otp'&&!V.busy)finish();}).catch(function(){});}
+window.addEventListener('focus',linkCheck);document.addEventListener('visibilitychange',function(){if(!document.hidden)linkCheck();});
 var done=null;
 async function submit(){
   if(V.busy)return;
@@ -594,8 +603,8 @@ async function submit(){
       var r=await SB.auth.signInWithPassword({email:em,password:val('ja-p')});
       if(r.error&&/Email not confirmed/i.test(r.error.message||'')){
         /* signed up but never entered the code: send a fresh one and go straight to the code screen */
-        var rs=await SB.auth.resend({type:'signup',email:em});if(rs.error)throw rs.error;
-        V.otpType='signup';V.busy=false;cooldown();show('otp');V.msg='Your email is not verified yet. We sent a new code.';paint();return;
+        var rs=await SB.auth.resend({type:'signup',email:em,options:{emailRedirectTo:home()}});if(rs.error)throw rs.error;
+        V.otpType='signup';V.busy=false;cooldown();show('otp');V.msg='Your email is not verified yet. We sent a new verification email.';paint();return;
       }
       if(r.error)throw r.error;
       await finish();
@@ -609,7 +618,7 @@ async function submit(){
       var inv=await SB.rpc('is_invited',{p_email:em});
       if(inv.error)throw inv.error;
       if(!inv.data)return bad('This email has not been added yet. Ask the owner to add it, then try again.');
-      var s=await SB.auth.signUp({email:em,password:p,options:{data:{name:nm.slice(0,40)}}});if(s.error)throw s.error;
+      var s=await SB.auth.signUp({email:em,password:p,options:{data:{name:nm.slice(0,40)},emailRedirectTo:home()}});if(s.error)throw s.error;
       /* Supabase answers a sign-up for an email that already has an account with an empty identities list */
       if(s.data&&s.data.user&&Array.isArray(s.data.user.identities)&&s.data.user.identities.length===0)return bad('This email already has an account. Sign in, or use Forgot password.');
       if(s.data&&s.data.session){await finish();return;}
@@ -618,7 +627,7 @@ async function submit(){
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return bad('Enter a valid email.');
       V.email=em;busy(true);
       var inv2=await SB.rpc('is_invited',{p_email:em});
-      if(!inv2.error&&inv2.data){var r2=await SB.auth.resetPasswordForEmail(em);if(r2.error)throw r2.error;}
+      if(!inv2.error&&inv2.data){var r2=await SB.auth.resetPasswordForEmail(em,{redirectTo:home()});if(r2.error)throw r2.error;}
       V.otpType='recovery';V.busy=false;cooldown();show('rotp');
     }else if(n==='otp'||n==='rotp'){
       var c6=code().replace(/\D/g,'');
@@ -639,9 +648,9 @@ async function submit(){
 async function resend(){
   if(V.cool>0||V.busy)return;
   try{
-    if(V.otpType==='recovery'){var r=await SB.auth.resetPasswordForEmail(V.email);if(r.error)throw r.error;}
-    else{var s=await SB.auth.resend({type:'signup',email:V.email});if(s.error)throw s.error;}
-    V.msg='A new code is on its way.';V.err='';cooldown();paint();
+    if(V.otpType==='recovery'){var r=await SB.auth.resetPasswordForEmail(V.email,{redirectTo:home()});if(r.error)throw r.error;}
+    else{var s=await SB.auth.resend({type:'signup',email:V.email,options:{emailRedirectTo:home()}});if(s.error)throw s.error;}
+    V.msg='A new email is on its way.';V.err='';cooldown();paint();
   }catch(e){V.err=friendly(e);V.msg='';paint();}
 }
 
@@ -659,7 +668,7 @@ async function checkMember(){
 async function finish(){
   var ok=await checkMember();
   if(!ok){try{await SB.auth.signOut();}catch(e){}session=null;V.busy=false;V.err='Your access has been removed or was never added. Ask the owner.';show('signin',true);return;}
-  if(V.name==='otp'){V.busy=false;show('ready');await wait(1100);}
+  if(V.name==='otp'||V.welcome){V.welcome=false;V.busy=false;show('ready');await wait(1100);}
   closeUi();startWatch();if(done){var d=done;done=null;d();}
 }
 function startWatch(){
@@ -773,7 +782,18 @@ function start(){
   return new Promise(function(res){
     done=res;
     show('wait');
-    checkMember().then(function(ok){if(ok){closeUi();startWatch();done=null;res();}else{V.err='';show('signin');}}).catch(function(e){V.err=friendly(e);show('signin',true);});
+    var L=LINK;LINK=null;
+    if(L&&L.access_token&&L.refresh_token){
+      /* came back from the email link: sign in with it */
+      SB.auth.setSession({access_token:L.access_token,refresh_token:L.refresh_token}).then(function(r){
+        if(r.error)throw r.error;
+        if(L.type==='recovery'){V.otpType='recovery';show('newpw');return;}
+        V.welcome=true;return finish();
+      }).catch(function(e){V.err=friendly(e);show('signin',true);});
+      return;
+    }
+    if(L)V.err=/otp_expired|expired|invalid/i.test((L.error_code||'')+' '+(L.error_description||''))?'That email link has expired or was already used. Sign in, or ask for a new email.':(L.error_description||'That email link did not work. Try again.');
+    checkMember().then(function(ok){if(ok){V.err='';closeUi();startWatch();done=null;res();}else{show('signin',!!V.err);}}).catch(function(e){V.err=friendly(e);show('signin',true);});
   });
 }
 function gate(){if(!gated)gated=start();return gated;}
@@ -2205,7 +2225,7 @@ function peopleCard(){
   return '<section class="card wide"><div class="card-h"><span class="lbl">People with access</span><span class="pill">'+(CM?CM.length:0)+'</span></div>'+
     '<form data-form="invite" novalidate><div class="fld"><label for="inv-email">Add an email</label><input id="inv-email" type="email" inputmode="email" autocomplete="off" placeholder="name@example.com"></div>'+
     '<div class="cta"><button class="btn primary" type="submit">Give access</button></div></form>'+
-    '<p class="pf-note">They open this app, tap Create account, and get a 6-digit security code by email. After that they sign in with email and password until you remove their access.</p>'+body+'</section>';
+    '<p class="pf-note">They open this app, tap Create account, and confirm their email from the message we send them. After that they sign in with email and password until you remove their access.</p>'+body+'</section>';
 }
 async function loadCM(){try{CM=await CL.list();}catch(e){CM=CM||[];}CMT=0;if(S.tab==='profile')render();}
 function formProfile(first){
