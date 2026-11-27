@@ -371,94 +371,218 @@ details.rets[open] summary{padding-bottom:12px;border-bottom:1px solid var(--lin
 (function(){
 var CFG=window.JHUMKA_CLOUD;
 if(!CFG||!CFG.url||!CFG.anonKey||window.claude)return;
-var SB=null,session=null,me={email:'',id:'',role:''},gated=null,cache={},subs={},dsubs={},loaded={},chan=null,watch=null;
+var SB=null,session=null,me={email:'',id:'',role:'',name:''},gated=null,cache={},subs={},dsubs={},loaded={},chan=null,watch=null;
 function $(s,r){return (r||document).querySelector(s);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function lc(s){return String(s||'').trim().toLowerCase();}
 
-/* ---------- styles ---------- */
+/* ---------- styles: the app's own tokens (--bg, --card, --ink, --accent, glow), so it follows light and dark ---------- */
 var css=document.createElement('style');
-css.textContent='#ja{position:fixed;inset:0;z-index:99999;background:var(--bg,#ececee);color:var(--fg,#121214);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:max(24px,env(safe-area-inset-top)) 16px 32px;font-family:Manrope,system-ui,sans-serif}'+
-'#ja .ja-c{width:100%;max-width:420px;margin:auto;background:var(--card,#fff);border-radius:28px;padding:28px 24px;box-shadow:0 10px 40px rgba(0,0,0,.08)}'+
-'#ja .ja-logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;margin-bottom:6px}'+
-'#ja .ja-logo img{width:38px;height:38px;border-radius:10px;object-fit:cover}'+
-'#ja h1{font-size:24px;margin:14px 0 4px;font-weight:800}'+
-'#ja p{color:var(--mute,#6c6c73);font-size:14px;line-height:1.5;margin:4px 0 0}'+
-'#ja label{display:block;margin-top:16px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute,#6c6c73)}'+
-'#ja input{width:100%;height:50px;margin-top:8px;border:0;border-radius:14px;background:var(--field,#f5f5f7);color:var(--fg,#121214);padding:0 16px;font:inherit;font-size:16px;outline:none}'+
-'#ja input:focus{box-shadow:0 0 0 2px var(--accent,#7335a8)}'+
-'#ja input.ja-code{text-align:center;font-size:28px;letter-spacing:.5em;font-weight:700;padding-left:.5em}'+
-'#ja button.ja-b{width:100%;height:52px;margin-top:20px;border:0;border-radius:999px;background:var(--ink,#0f0f11);color:var(--on-ink,#fff);font:inherit;font-weight:700;font-size:15px;cursor:pointer}'+
-'#ja button.ja-b[disabled]{opacity:.5;cursor:default}'+
-'#ja button.ja-l{background:none;border:0;color:var(--accent,#7335a8);font:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:6px 2px}'+
-'#ja .ja-row{display:flex;justify-content:space-between;gap:8px;margin-top:14px;flex-wrap:wrap}'+
-'#ja .ja-err{margin-top:14px;padding:10px 14px;border-radius:12px;background:rgba(179,54,45,.12);color:var(--bad,#b3362d);font-size:14px;font-weight:600}'+
-'#ja .ja-ok{margin-top:14px;padding:10px 14px;border-radius:12px;background:rgba(29,122,75,.12);color:var(--good,#1d7a4b);font-size:14px;font-weight:600}';
+css.textContent=[
+'#ja{position:fixed;inset:0;z-index:99999;background:var(--bg);color:var(--fg);overflow:auto;font-family:var(--font);font-size:15px;line-height:1.45}',
+'#ja::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(50% 36% at 6% 2%,var(--glow1),transparent 70%),radial-gradient(60% 40% at 15% 100%,var(--glow1),transparent 70%),radial-gradient(55% 40% at 92% 90%,var(--glow2),transparent 70%)}',
+'#ja .ja-in{position:relative;min-height:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column;padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}',
+'#ja .ja-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 6px}',
+'#ja .ja-brand{display:flex;align-items:center;gap:10px;min-width:0}',
+'#ja .ja-mark{width:34px;height:34px;border-radius:10px;background:#7335a8;color:#fff;display:grid;place-items:center;font-size:19px;font-weight:800;flex:none}',
+'#ja .ja-wm{font-size:21px;font-weight:800;letter-spacing:-.035em}',
+'#ja .ja-wm span{font-weight:500;color:var(--mute);margin-left:6px}',
+'#ja .ja-ib{width:42px;height:42px;border-radius:50%;border:0;background:var(--card);color:var(--fg);display:grid;place-items:center;box-shadow:var(--shadow);cursor:pointer;flex:none}',
+'#ja .ja-ib svg{width:20px;height:20px}',
+'#ja .ja-main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:28px 0 8px}',
+'#ja .ja-eye{margin:0 0 12px;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}',
+'#ja h1{margin:0;font-size:clamp(32px,9.4vw,44px);line-height:1.04;letter-spacing:-.04em;font-weight:700;text-wrap:balance}',
+'#ja h1 span{display:block;color:var(--faint);font-weight:600}',
+'#ja .ja-sub{margin:14px 0 0;color:var(--mute);font-size:14.5px}',
+'#ja .ja-sub b{color:var(--fg);overflow-wrap:anywhere}',
+'#ja .ja-c{background:var(--card);border-radius:28px;padding:22px;margin-top:22px;box-shadow:var(--shadow)}',
+'#ja .ja-seg{display:flex;background:var(--chip);border-radius:999px;padding:4px;margin-bottom:4px}',
+'#ja .ja-seg button{flex:1;height:40px;border:0;background:none;border-radius:999px;font:inherit;font-weight:700;font-size:14px;color:var(--mute);cursor:pointer}',
+'#ja .ja-seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}',
+'#ja .ja-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 2px}',
+'#ja .ja-st{font-size:11.5px;font-weight:700;color:var(--faint)}',
+'#ja .ja-st i{display:block;height:4px;border-radius:999px;background:var(--chip);margin-bottom:8px}',
+'#ja .ja-st.done{color:var(--mute)}#ja .ja-st.done i{background:var(--ink)}',
+'#ja .ja-st.on{color:var(--fg)}#ja .ja-st.on i{background:var(--accent)}',
+'#ja .ja-lb{display:block;margin:16px 0 8px;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}',
+'#ja .ja-f{display:block;width:100%;min-width:0;border:1.5px solid transparent;background:var(--field);color:var(--fg);border-radius:16px;padding:14px 16px;font:inherit;font-size:16px;outline:0;appearance:none;-webkit-appearance:none}',
+'#ja .ja-f:focus{border-color:var(--fg)}',
+'#ja .ja-f::placeholder{color:var(--faint)}',
+'#ja .ja-pw{position:relative}#ja .ja-pw .ja-f{padding-right:54px}',
+'#ja .ja-eyeb{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;border-radius:50%;background:none;color:var(--mute);display:grid;place-items:center;cursor:pointer}',
+'#ja .ja-eyeb svg{width:20px;height:20px}',
+'#ja .ja-hint{margin-top:8px;font-size:13px;color:var(--mute)}',
+'#ja .ja-hint.ok{color:var(--good);font-weight:600}',
+'#ja .ja-otp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}',
+'#ja .ja-otp .ja-f{height:58px;padding:0;text-align:center;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}',
+'#ja .ja-b{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;height:52px;margin-top:20px;border:0;border-radius:999px;background:var(--ink);color:var(--on-ink);font:inherit;font-weight:700;font-size:15px;cursor:pointer}',
+'#ja .ja-b[disabled]{opacity:.55;cursor:default}',
+'#ja .ja-spin{width:18px;height:18px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:ja-r .7s linear infinite;flex:none}',
+'@keyframes ja-r{to{transform:rotate(360deg)}}',
+'@media (prefers-reduced-motion:reduce){#ja .ja-spin{animation-duration:2.4s}}',
+'#ja .ja-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}',
+'#ja .ja-row.end{justify-content:flex-end}',
+'#ja .ja-l{background:none;border:0;color:var(--fg);font:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:8px 2px;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}',
+'#ja .ja-l[disabled]{color:var(--mute);text-decoration:none;cursor:default}',
+'#ja .ja-err,#ja .ja-ok{margin-top:14px;padding:12px 16px;border-radius:16px;background:var(--chip);font-size:14px;font-weight:600}',
+'#ja .ja-err{color:var(--bad)}#ja .ja-ok{color:var(--good)}',
+'#ja .ja-wait{display:flex;align-items:center;gap:12px;color:var(--mute);font-weight:600}',
+'#ja .ja-foot{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:14px 18px;border-radius:20px;background:var(--chip);color:var(--mute);font-size:13px}',
+'#ja .ja-foot svg{width:18px;height:18px;flex:none;margin-top:1px}',
+'#ja :focus-visible{outline:2px solid var(--fg);outline-offset:2px}',
+'#ja .ja-f:focus-visible{outline:0}'
+].join('');
 document.head.appendChild(css);
 
 /* ---------- auth screen ---------- */
-var host=null,V={name:'signin',email:'',msg:'',err:'',busy:false,cool:0,coolT:null};
-function ui(){if(!host){host=document.createElement('div');host.id='ja';host.setAttribute('role','dialog');host.setAttribute('aria-label','Sign in');document.body.appendChild(host);}return host;}
-function closeUi(){if(host){host.remove();host=null;}}
+var host=null,V={name:'signin',email:'',msg:'',err:'',busy:false,cool:0,coolT:null,last:'',clearOtp:false};
+function ic(p){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';}
+var I={
+  sun:ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  moon:ic('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'),
+  eye:ic('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  eyeOff:ic('<path d="M2 12s3.6-7 10-7c2 0 3.7.7 5.1 1.6M22 12s-3.6 7-10 7c-2 0-3.7-.7-5.1-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>'),
+  lock:ic('<rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>')
+};
+/* theme: same storage key as the app, so a choice made here carries into the app */
+var THEME_KEY='jhumka-theme';
+try{var savedT=localStorage.getItem(THEME_KEY);if(savedT==='light'||savedT==='dark')document.documentElement.setAttribute('data-theme',savedT);}catch(e){}
+function theme(){var t=document.documentElement.getAttribute('data-theme');if(t==='light'||t==='dark')return t;return (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
+function themeBtn(b){if(!b)return;var n=theme()==='dark'?'light':'dark';b.innerHTML=n==='light'?I.sun:I.moon;b.setAttribute('aria-label','Switch to '+n+' theme');b.title='Switch to '+n+' theme';}
+function flipTheme(){var t=theme()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem(THEME_KEY,t);}catch(e){}themeBtn($('#ja [data-go="theme"]'));}
+
+function ui(){if(!host){host=document.createElement('div');host.id='ja';host.setAttribute('role','dialog');host.setAttribute('aria-modal','true');host.setAttribute('aria-labelledby','ja-h');document.body.appendChild(host);document.body.classList.add('lock');}return host;}
+function closeUi(){if(host){host.remove();host=null;document.body.classList.remove('lock');}}
 function note(){return (V.err?'<div class="ja-err" role="alert">'+esc(V.err)+'</div>':'')+(V.msg?'<div class="ja-ok" role="status">'+esc(V.msg)+'</div>':'');}
-function head(t,s){return '<div class="ja-logo"><img alt="" src="assets/icon-192.png" onerror="this.remove()"><span>Jhumka Base</span></div><h1>'+esc(t)+'</h1><p>'+esc(s)+'</p>';}
+function fld(id,lab,type,ac,ph,v){
+  var inp='<input class="ja-f" id="'+id+'" type="'+type+'" autocomplete="'+ac+'"'+
+    (type==='email'?' inputmode="email" autocapitalize="none" spellcheck="false"':'')+
+    (ph?' placeholder="'+esc(ph)+'"':'')+(v?' value="'+esc(v)+'"':'')+'>';
+  return '<label class="ja-lb" for="'+id+'">'+esc(lab)+'</label>'+
+    (type==='password'?'<div class="ja-pw">'+inp+'<button class="ja-eyeb" type="button" data-go="eye" aria-label="Show password" aria-pressed="false">'+I.eye+'</button></div>':inp);
+}
+function btn(t){return '<button class="ja-b" type="submit"'+(V.busy?' disabled':'')+'><span class="ja-spin"'+(V.busy?'':' hidden')+'></span><span>'+esc(t)+'</span></button>';}
+function seg(on){return '<div class="ja-seg" role="group" aria-label="Sign in or create an account"><button type="button" data-go="signin" aria-pressed="'+(on==='signin')+'">Sign in</button><button type="button" data-go="signup" aria-pressed="'+(on==='signup')+'">Create account</button></div>';}
+function steps(k){var L=['Your details','Verify email','Ready'];return '<div class="ja-steps" role="img" aria-label="Step '+k+' of 3: '+L[k-1]+'">'+L.map(function(l,i){return '<div class="ja-st'+(i+1<k?' done':(i+1===k?' on':''))+'"><i></i>'+l+'</div>';}).join('')+'</div>';}
+function otpBoxes(){var s='';for(var i=0;i<6;i++)s+='<input class="ja-f" id="ja-o'+i+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="'+(i?'off':'one-time-code')+'" aria-label="Digit '+(i+1)+' of 6">';return '<div class="ja-lb" id="ja-ol">Verification code</div><div class="ja-otp" role="group" aria-labelledby="ja-ol">'+s+'</div>';}
+function rtext(){return V.cool>0?'Send again in '+V.cool+'s':'Send a new code';}
+function pwHint(){var p=$('#ja-p'),h=$('#ja-ph');if(!p||!h)return;var ok=p.value.length>=8;h.textContent=ok?'Good length.':'At least 8 characters.';h.className='ja-hint'+(ok?' ok':'');}
 function show(name,keep){V.name=name;if(!keep){V.err='';V.msg='';}paint();}
 function paint(){
-  var h=ui(),b=V.busy?' disabled':'',n=V.name,x='';
+  var h=ui(),n=V.name,hero,card='',sub='',keepV={};
+  if(V.last===n)Array.prototype.forEach.call(h.querySelectorAll('input'),function(i){if(!(V.clearOtp&&/^ja-o/.test(i.id)))keepV[i.id]=i.value;});
+  V.clearOtp=false;
+  var form=function(inner){return '<form id="ja-form" novalidate>'+inner+'</form>';};
   if(n==='signin'){
-    x=head('Sign in','Use the email the owner added for you.')+'<form id="ja-f" novalidate>'+
-      '<label for="ja-e">Email</label><input id="ja-e" type="email" autocomplete="username" inputmode="email" value="'+esc(V.email)+'">'+
-      '<label for="ja-p">Password</label><input id="ja-p" type="password" autocomplete="current-password">'+note()+
-      '<button class="ja-b" type="submit"'+b+'>Sign in</button></form>'+
-      '<div class="ja-row"><button class="ja-l" type="button" data-go="signup">First time here? Create account</button><button class="ja-l" type="button" data-go="forgot">Forgot password</button></div>';
+    hero=['Welcome back','Sign in','to your books.'];
+    sub='Use the email and password you set up for Jhumka Base.';
+    card=seg('signin')+form(fld('ja-e','Email','email','username','you@example.com',V.email)+fld('ja-p','Password','password','current-password')+note()+btn('Sign in'))+
+      '<div class="ja-row end"><button class="ja-l" type="button" data-go="forgot">Forgot password?</button></div>';
   }else if(n==='signup'){
-    x=head('Create your account','Your email must be added by the owner first. We email you a 6-digit security code from Jhumka.')+'<form id="ja-f" novalidate>'+
-      '<label for="ja-e">Email</label><input id="ja-e" type="email" autocomplete="username" inputmode="email" value="'+esc(V.email)+'">'+
-      '<label for="ja-p">Choose a password</label><input id="ja-p" type="password" autocomplete="new-password" placeholder="At least 8 characters">'+
-      '<label for="ja-p2">Repeat password</label><input id="ja-p2" type="password" autocomplete="new-password">'+note()+
-      '<button class="ja-b" type="submit"'+b+'>Send security code</button></form>'+
-      '<div class="ja-row"><button class="ja-l" type="button" data-go="signin">I already have an account</button></div>';
+    hero=['New to the team','Create account','in two quick steps.'];
+    sub='The owner adds your email first. Then we email you a 6-digit code to check it is yours.';
+    card=seg('signup')+steps(1)+form(fld('ja-n','Your name','text','name','e.g. Anu Menon')+fld('ja-e','Email','email','username','you@example.com',V.email)+
+      fld('ja-p','Choose a password','password','new-password','At least 8 characters')+'<div class="ja-hint" id="ja-ph">At least 8 characters.</div>'+
+      fld('ja-p2','Repeat password','password','new-password')+note()+btn('Send verification code'));
   }else if(n==='otp'||n==='rotp'){
-    x=head('Enter your security code','We sent a 6-digit code from Jhumka to '+V.email+'. It can take a minute.')+'<form id="ja-f" novalidate>'+
-      '<label for="ja-c">Security code</label><input id="ja-c" class="ja-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">'+note()+
-      '<button class="ja-b" type="submit"'+b+'>Verify</button></form>'+
-      '<div class="ja-row"><button class="ja-l" type="button" data-go="resend"'+(V.cool>0?' disabled':'')+'>'+(V.cool>0?'Send again in '+V.cool+'s':'Send a new code')+'</button><button class="ja-l" type="button" data-go="signin">Back</button></div>';
+    var su=n==='otp';
+    hero=[su?'Verify your email':'Reset password','Check your inbox','for a 6-digit code.'];
+    sub='We sent it to <b>'+esc(V.email)+'</b>. It can take a minute, so check spam too.';
+    card=(su?steps(2):'')+form(otpBoxes()+note()+btn(su?'Verify and continue':'Verify code'))+
+      '<div class="ja-row"><button class="ja-l" type="button" data-go="resend"'+(V.cool>0?' disabled':'')+'>'+rtext()+'</button><button class="ja-l" type="button" data-go="'+(su?'signup':'forgot')+'">Use another email</button></div>';
   }else if(n==='forgot'){
-    x=head('Forgot password','Enter your email. We send a security code so you can choose a new password.')+'<form id="ja-f" novalidate>'+
-      '<label for="ja-e">Email</label><input id="ja-e" type="email" autocomplete="username" inputmode="email" value="'+esc(V.email)+'">'+note()+
-      '<button class="ja-b" type="submit"'+b+'>Send security code</button></form>'+
+    hero=['Reset password','Forgot it?','We will send a code.'];
+    sub='Enter your email. If it has access, we send a 6-digit code so you can choose a new password.';
+    card=form(fld('ja-e','Email','email','username','you@example.com',V.email)+note()+btn('Send code'))+
       '<div class="ja-row"><button class="ja-l" type="button" data-go="signin">Back to sign in</button></div>';
   }else if(n==='newpw'){
-    x=head('Choose a new password','You are verified. Set a password for next time.')+'<form id="ja-f" novalidate>'+
-      '<label for="ja-p">New password</label><input id="ja-p" type="password" autocomplete="new-password" placeholder="At least 8 characters">'+
-      '<label for="ja-p2">Repeat password</label><input id="ja-p2" type="password" autocomplete="new-password">'+note()+
-      '<button class="ja-b" type="submit"'+b+'>Save and continue</button></form>';
-  }else{x=head('Please wait','Checking your access…')+note();}
-  h.innerHTML='<div class="ja-c">'+x+'</div>';
-  var f=$('#ja-f',h);if(f)f.addEventListener('submit',function(e){e.preventDefault();submit();});
-  var first=$('#ja-c',h)||$('#ja-e',h)||$('#ja-p',h);if(first&&!V.busy)try{first.focus({preventScroll:true});}catch(e){}
+    hero=['Almost done','New password','for next time.'];
+    sub='Your email is verified. Choose a new password.';
+    card=form(fld('ja-p','New password','password','new-password','At least 8 characters')+'<div class="ja-hint" id="ja-ph">At least 8 characters.</div>'+
+      fld('ja-p2','Repeat password','password','new-password')+note()+btn('Save and sign in'));
+  }else if(n==='ready'){
+    hero=['Verified','You are in.','Welcome to Jhumka Base.'];
+    card=steps(3)+'<div class="ja-ok" role="status">Email verified. Opening your books…</div>';
+  }else if(n==='x'){
+    hero=['Jhumka Base','Cannot start','right now.'];
+    sub=esc(V.err);
+  }else{
+    hero=['Jhumka Base','One moment','checking your access.'];
+    card='<div class="ja-wait"><span class="ja-spin"></span>Signing you in…</div>'+note();
+  }
+  h.innerHTML='<div class="ja-in"><header class="ja-top"><div class="ja-brand"><span class="ja-mark" aria-hidden="true">J</span><div class="ja-wm">Jhumka<span>Base</span></div></div>'+
+    '<button class="ja-ib" type="button" data-go="theme"></button></header>'+
+    '<main class="ja-main"><p class="ja-eye">'+esc(hero[0])+'</p><h1 id="ja-h">'+esc(hero[1])+(hero[2]?'<span>'+esc(hero[2])+'</span>':'')+'</h1>'+
+    (sub?'<p class="ja-sub">'+sub+'</p>':'')+(card?'<div class="ja-c">'+card+'</div>':'')+
+    '<div class="ja-foot">'+I.lock+'<span>Only people the owner adds can get in. Verification codes come by email from Jhumka.</span></div></main></div>';
+  themeBtn($('[data-go="theme"]',h));
+  Object.keys(keepV).forEach(function(k){var el=document.getElementById(k);if(el)el.value=keepV[k];});
+  V.last=n;
+  var f=$('#ja-form',h);if(f)f.addEventListener('submit',function(e){e.preventDefault();submit();});
+  pwHint();
+  if(!V.busy){
+    var ins=h.querySelectorAll('#ja-form input'),t=null;
+    for(var i=0;i<ins.length;i++){if(!ins[i].value){t=ins[i];break;}}
+    if(!t&&V.err&&ins.length)t=ins[0];
+    if(t)try{t.focus({preventScroll:true});}catch(e){}
+  }
 }
+/* one-time code boxes: type, paste or autofill; backspace and arrows move between boxes; fills in -> submits */
+function otpBox(i){return document.getElementById('ja-o'+i);}
+function code(){var s='';for(var i=0;i<6;i++){var e=otpBox(i);s+=e?e.value:'';}return s;}
+function fillOtp(i,d){for(var k=0;k<d.length&&i+k<6;k++)otpBox(i+k).value=d[k];var nx=otpBox(Math.min(5,i+d.length));if(nx)nx.focus();autoGo();}
+function autoGo(){if(code().length===6&&!V.busy)submit();}
 document.addEventListener('click',function(e){
   var g=e.target.closest&&e.target.closest('#ja [data-go]');if(!g)return;
-  var w=g.dataset.go,em=$('#ja-e');if(em)V.email=lc(em.value);
+  var w=g.dataset.go;
+  if(w==='theme')return flipTheme();
+  if(w==='eye'){var inp=g.parentNode.querySelector('input'),on=inp.type==='password';inp.type=on?'text':'password';
+    g.setAttribute('aria-pressed',String(on));g.setAttribute('aria-label',on?'Hide password':'Show password');g.innerHTML=on?I.eyeOff:I.eye;return;}
+  if(V.busy)return;
+  var em=$('#ja-e');if(em)V.email=lc(em.value);
   if(w==='resend')return resend();
   show(w);
+});
+document.addEventListener('input',function(e){
+  var t=e.target;if(!t||!t.closest||!t.closest('#ja'))return;
+  if(t.id==='ja-p')pwHint();
+  var m=/^ja-o(\d)$/.exec(t.id);if(!m)return;
+  var i=+m[1];
+  if(e.inputType==='insertText'&&e.data&&e.data.length===1){t.value=e.data.replace(/\D/g,'');if(t.value&&i<5)otpBox(i+1).focus();autoGo();return;}
+  var d=t.value.replace(/\D/g,'');
+  if(d.length>1){t.value='';fillOtp(i,d);return;}
+  t.value=d;if(d&&i<5)otpBox(i+1).focus();autoGo();
+});
+document.addEventListener('focusin',function(e){var t=e.target;if(t&&/^ja-o\d$/.test(t.id||''))try{t.select();}catch(x){}});
+document.addEventListener('keydown',function(e){
+  var t=e.target,m=/^ja-o(\d)$/.exec(t&&t.id||'');if(!m)return;var i=+m[1];
+  if(e.key==='Backspace'&&!t.value&&i>0){var p=otpBox(i-1);p.value='';p.focus();e.preventDefault();}
+  else if(e.key==='ArrowLeft'&&i>0){otpBox(i-1).focus();e.preventDefault();}
+  else if(e.key==='ArrowRight'&&i<5){otpBox(i+1).focus();e.preventDefault();}
+});
+document.addEventListener('paste',function(e){
+  var t=e.target,m=/^ja-o(\d)$/.exec(t&&t.id||'');if(!m)return;
+  var d=(((e.clipboardData||window.clipboardData)||{getData:function(){return '';}}).getData('text')||'').replace(/\D/g,'');
+  if(!d)return;e.preventDefault();fillOtp(+m[1],d);
 });
 function val(id){var e=$('#'+id);return e?e.value:'';}
 function friendly(e){
   var m=String(e&&e.message||e||''),c=e&&(e.code||e.status);
   if(/NOT_INVITED|Database error saving new user/i.test(m))return 'This email has not been added yet. Ask the owner to add it, then try again.';
   if(/Invalid login credentials/i.test(m))return 'Wrong email or password.';
-  if(/Email not confirmed/i.test(m))return 'This account is not verified yet. Use Create account to get a security code.';
-  if(/otp_expired|expired|invalid/i.test(m)&&/token|otp|code/i.test(m))return 'That code is wrong or has expired. Send a new one.';
+  if(/Email not confirmed/i.test(m))return 'This email is not verified yet. Enter the code we sent you.';
+  if(/already registered|already been registered|user_already_exists/i.test(m))return 'This email already has an account. Sign in, or use Forgot password.';
+  if(/otp_expired|expired|invalid/i.test(m)&&/token|otp|code/i.test(m))return 'That code is wrong or has expired. Check it, or send a new one.';
   if(/rate limit|too many|over_email_send_rate_limit|429/i.test(m+c))return 'Too many tries. Wait a minute and try again.';
   if(/Failed to fetch|NetworkError|network/i.test(m))return 'No internet connection. Check it and try again.';
   if(/weak|password/i.test(m)&&/short|least|weak/i.test(m))return 'Choose a longer password (at least 8 characters).';
   return m||'Something went wrong. Try again.';
 }
-function cooldown(){V.cool=60;clearInterval(V.coolT);V.coolT=setInterval(function(){V.cool--;if(V.cool<=0){V.cool=0;clearInterval(V.coolT);}if(V.name==='otp'||V.name==='rotp'){var b=$('#ja [data-go="resend"]');if(b){b.disabled=V.cool>0;b.textContent=V.cool>0?'Send again in '+V.cool+'s':'Send a new code';}}},1000);}
-function busy(on){V.busy=on;var b=$('#ja .ja-b');if(b)b.disabled=on;}
-function bad(m){V.err=m;V.msg='';busy(false);paint();}
+function cooldown(){V.cool=60;clearInterval(V.coolT);V.coolT=setInterval(function(){V.cool--;if(V.cool<=0){V.cool=0;clearInterval(V.coolT);}if(V.name==='otp'||V.name==='rotp'){var b=$('#ja [data-go="resend"]');if(b){b.disabled=V.cool>0;b.textContent=rtext();}}},1000);}
+function busy(on){V.busy=on;var b=$('#ja .ja-b');if(b){b.disabled=on;var s=b.querySelector('.ja-spin');if(s)s.hidden=!on;}
+  if(on&&host)Array.prototype.forEach.call(host.querySelectorAll('.ja-err,.ja-ok'),function(x){x.remove();});}
+function bad(m){V.err=m;V.msg='';if(V.name==='otp'||V.name==='rotp')V.clearOtp=true;busy(false);paint();}
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
 var done=null;
 async function submit(){
   if(V.busy)return;
@@ -467,18 +591,27 @@ async function submit(){
     if(n==='signin'){
       if(!em||!val('ja-p'))return bad('Enter your email and password.');
       V.email=em;busy(true);
-      var r=await SB.auth.signInWithPassword({email:em,password:val('ja-p')});if(r.error)throw r.error;
+      var r=await SB.auth.signInWithPassword({email:em,password:val('ja-p')});
+      if(r.error&&/Email not confirmed/i.test(r.error.message||'')){
+        /* signed up but never entered the code: send a fresh one and go straight to the code screen */
+        var rs=await SB.auth.resend({type:'signup',email:em});if(rs.error)throw rs.error;
+        V.otpType='signup';V.busy=false;cooldown();show('otp');V.msg='Your email is not verified yet. We sent a new code.';paint();return;
+      }
+      if(r.error)throw r.error;
       await finish();
     }else if(n==='signup'){
-      var p=val('ja-p'),p2=val('ja-p2');V.email=em;
+      var nm=val('ja-n').trim(),p=val('ja-p'),p2=val('ja-p2');V.email=em;
+      if(!nm)return bad('Enter your name.');
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return bad('Enter a valid email.');
       if(p.length<8)return bad('Password must be at least 8 characters.');
       if(p!==p2)return bad('The two passwords do not match.');
-      busy(true);V.pw=p;
+      busy(true);
       var inv=await SB.rpc('is_invited',{p_email:em});
       if(inv.error)throw inv.error;
       if(!inv.data)return bad('This email has not been added yet. Ask the owner to add it, then try again.');
-      var s=await SB.auth.signUp({email:em,password:p});if(s.error)throw s.error;
+      var s=await SB.auth.signUp({email:em,password:p,options:{data:{name:nm.slice(0,40)}}});if(s.error)throw s.error;
+      /* Supabase answers a sign-up for an email that already has an account with an empty identities list */
+      if(s.data&&s.data.user&&Array.isArray(s.data.user.identities)&&s.data.user.identities.length===0)return bad('This email already has an account. Sign in, or use Forgot password.');
       if(s.data&&s.data.session){await finish();return;}
       V.otpType='signup';V.busy=false;cooldown();show('otp');
     }else if(n==='forgot'){
@@ -488,10 +621,10 @@ async function submit(){
       if(!inv2.error&&inv2.data){var r2=await SB.auth.resetPasswordForEmail(em);if(r2.error)throw r2.error;}
       V.otpType='recovery';V.busy=false;cooldown();show('rotp');
     }else if(n==='otp'||n==='rotp'){
-      var code=val('ja-c').replace(/\D/g,'');
-      if(code.length<6)return bad('Enter the 6-digit code from your email.');
+      var c6=code().replace(/\D/g,'');
+      if(c6.length<6)return bad('Enter the 6-digit code from your email.');
       busy(true);
-      var v=await SB.auth.verifyOtp({email:V.email,token:code,type:V.otpType});if(v.error)throw v.error;
+      var v=await SB.auth.verifyOtp({email:V.email,token:c6,type:V.otpType});if(v.error)throw v.error;
       if(V.otpType==='recovery'){V.busy=false;show('newpw');return;}
       await finish();
     }else if(n==='newpw'){
@@ -520,11 +653,13 @@ async function checkMember(){
   var q=await SB.from('members').select('email,role').eq('email',em).maybeSingle();
   if(q.error)throw q.error;
   if(!q.data)return false;
-  me={email:em,id:session.user.id,role:q.data.role};return true;
+  var md=session.user.user_metadata||{};
+  me={email:em,id:session.user.id,role:q.data.role,name:String(md.name||'').slice(0,40)};return true;
 }
 async function finish(){
   var ok=await checkMember();
   if(!ok){try{await SB.auth.signOut();}catch(e){}session=null;V.busy=false;V.err='Your access has been removed or was never added. Ask the owner.';show('signin',true);return;}
+  if(V.name==='otp'){V.busy=false;show('ready');await wait(1100);}
   closeUi();startWatch();if(done){var d=done;done=null;d();}
 }
 function startWatch(){
@@ -534,7 +669,7 @@ function startWatch(){
   },45000);
   SB.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'&&me.email)lockOut();});
 }
-function lockOut(){me={email:'',id:'',role:''};try{SB.auth.signOut();}catch(e){}location.reload();}
+function lockOut(){me={email:'',id:'',role:'',name:''};try{SB.auth.signOut();}catch(e){}location.reload();}
 
 /* ---------- data layer ---------- */
 function err(e){
@@ -608,7 +743,7 @@ var DB={
   doc:function(p){var i=p.indexOf('/');return ref(p.slice(0,i),p.slice(i+1));}
 };
 var USER={
-  me:async function(){return {id:me.id,name:'',email:me.email};},
+  me:async function(){return {id:me.id,name:me.name||'',email:me.email};},
   isOwner:async function(){return me.role==='owner';},
   canEdit:async function(){return true;},
   can:async function(){return true;}
@@ -631,7 +766,7 @@ window.JHCLOUD={
 
 function start(){
   if(!window.supabase||!window.supabase.createClient){
-    V.name='x';ui().innerHTML='<div class="ja-c"><h1>Cannot start</h1><p>The sign-in library did not load. Check your internet connection and reload.</p></div>';return Promise.reject(new Error('no supabase'));
+    V.err='The sign-in library did not load. Check your internet connection and reload.';show('x',true);return Promise.reject(new Error('no supabase'));
   }
   SB=window.supabase.createClient(CFG.url,CFG.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   window.JHCLOUD._sb=SB;
@@ -3308,6 +3443,7 @@ render();
 
 async function boot(){
   try{DB=window.claude&&window.claude.use?await window.claude.use('db'):null;}catch(e){DB=null;}
+  paintTheme(); /* the theme may have been switched on the sign-in screen */
   try{ASSETS=window.claude&&window.claude.use?await window.claude.use('assets'):null;}catch(e){ASSETS=null;}
   try{
     U=window.claude&&window.claude.use?await window.claude.use('user'):null;

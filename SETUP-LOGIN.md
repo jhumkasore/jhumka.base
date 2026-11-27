@@ -24,9 +24,17 @@ What you get: every person signs in with email + password. You (the owner) add e
 2. Open `config.js` in this folder, paste them between the quotes, save, and upload to GitHub with the rest.
 
 ## 4. First use
-1. Open the site, tap **First time here? Create account**, use your owner email, choose a password, enter the code from your email.
+1. Open the site, tap **Create account**, enter your name, your owner email and a password, tap **Send verification code**, then enter the 6-digit code from your email.
 2. Profile > **People with access**: type an email, tap **Give access**. Tell that person to open the site and tap Create account.
 3. To end someone's access: **Remove access** next to their email. They are signed out within a minute and cannot sign up again unless you add them again.
+
+## The sign-in screen
+It uses the app's own look (same colours, fonts and light/dark switch), and works on phones and desktop.
+- **Sign in / Create account** switch at the top of the card.
+- **Create account** shows 3 steps: Your details, Verify email, Ready. The name entered here fills in the person's profile.
+- **Verification code**: six boxes. Typing, pasting the whole code, or phone autofill all work; it checks itself when all six digits are in. "Send a new code" unlocks after 60 seconds.
+- If someone created an account but never entered the code, signing in sends a fresh code and opens the code screen.
+- Only emails the owner added can create an account, and removed people are signed out within a minute.
 
 ## Notes
 - Existing data on one device does not move to the cloud automatically. Use Profile > Backup to export before switching, then import after signing in.

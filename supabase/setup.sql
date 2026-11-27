@@ -22,7 +22,7 @@ on conflict (email) do nothing;
 
 -- ---------- helpers ----------
 create or replace function public.my_email() returns text
-language sql stable as $$ select lower(coalesce(auth.jwt() ->> 'email','')) $$;
+language sql stable set search_path = '' as $$ select lower(coalesce(auth.jwt() ->> 'email','')) $$;
 
 create or replace function public.is_member() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -97,7 +97,6 @@ $$;
 revoke all on function public.invite_member(text), public.remove_member(text), public.list_members() from public, anon;
 grant execute on function public.invite_member(text), public.remove_member(text), public.list_members() to authenticated;
 grant execute on function public.is_invited(text) to anon, authenticated;
-grant execute on function public.is_member(), public.is_owner(), public.my_email() to anon, authenticated;
 
 -- ---------- row level security ----------
 alter table public.members enable row level security;
@@ -131,6 +130,12 @@ create policy docs_del on public.docs for delete to authenticated using (public.
 
 grant select, insert, update, delete on public.docs to authenticated;
 grant select on public.members to authenticated;
+
+-- ---------- lock down helper functions ----------
+-- Only is_invited is open to people who are not signed in (the Create account screen needs it).
+revoke execute on function public.only_invited() from public, anon, authenticated;
+revoke execute on function public.can_write(text, text), public.is_member(), public.is_owner(), public.my_email() from public, anon;
+grant execute on function public.can_write(text, text), public.is_member(), public.is_owner(), public.my_email() to authenticated;
 
 -- live updates between phones
 do $$ begin
